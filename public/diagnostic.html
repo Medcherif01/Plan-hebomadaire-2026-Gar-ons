@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnostic de Connexion</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .diagnostic-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            background: #ecf0f1;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        pre {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .status-icon {
+            font-size: 24px;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="diagnostic-container">
+        <h1>🔧 Diagnostic de Connexion - Plans Hebdomadaires</h1>
+        
+        <div class="test-section">
+            <h2>Informations système</h2>
+            <div id="system-info"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Tests de connectivité</h2>
+            <button onclick="runAllTests()">🚀 Lancer tous les tests</button>
+            <button onclick="testHealthEndpoint()">1️⃣ Tester Health API</button>
+            <button onclick="testLoginEndpoint()">2️⃣ Tester Login API</button>
+            <button onclick="clearResults()">🗑️ Effacer les résultats</button>
+            <div id="test-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Solutions recommandées</h2>
+            <div class="info test-result">
+                <strong>Si le serveur ne répond pas :</strong>
+                <ol>
+                    <li>Vérifiez que l'application est déployée sur Vercel</li>
+                    <li>Vérifiez les variables d'environnement (MONGO_URL, GEMINI_API_KEY, etc.)</li>
+                    <li>Consultez les logs Vercel pour voir les erreurs</li>
+                    <li>Vérifiez votre connexion Internet</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Display system information
+        function displaySystemInfo() {
+            const info = {
+                'Navigateur': navigator.userAgent,
+                'URL actuelle': window.location.href,
+                'Date/Heure': new Date().toLocaleString('fr-FR'),
+                'Connexion': navigator.onLine ? '✅ En ligne' : '❌ Hors ligne'
+            };
+            
+            let html = '<div class="test-result info">';
+            for (const [key, value] of Object.entries(info)) {
+                html += `<strong>${key}:</strong> ${value}<br>`;
+            }
+            html += '</div>';
+            
+            document.getElementById('system-info').innerHTML = html;
+        }
+
+        async function testHealthEndpoint() {
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML += '<div class="test-result info">⏳ Test du endpoint /api/health...</div>';
+            
+            try {
+                const startTime = Date.now();
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+                
+                const response = await fetch('/api/health', {
+                    method: 'GET',
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                const endTime = Date.now();
+                const responseTime = endTime - startTime;
+                
+                const data = await response.json();
+                
+                let html = '<div class="test-result ' + (response.ok ? 'success' : 'error') + '">';
+                html += '<span class="status-icon">' + (response.ok ? '✅' : '❌') + '</span>';
+                html += '<strong>Health Check:</strong> ' + (response.ok ? 'Réussi' : 'Échec') + '<br>';
+                html += '<strong>Code HTTP:</strong> ' + response.status + '<br>';
+                html += '<strong>Temps de réponse:</strong> ' + responseTime + ' ms<br>';
+                html += '<strong>Réponse:</strong><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                html += '</div>';
+                
+                resultsDiv.innerHTML += html;
+            } catch (error) {
+                let errorMsg = error.message;
+                if (error.name === 'AbortError') {
+                    errorMsg = 'Délai d\'attente dépassé (> 10s)';
+                }
+                
+                resultsDiv.innerHTML += `
+                    <div class="test-result error">
+                        <span class="status-icon">❌</span>
+                        <strong>Erreur Health Check:</strong><br>
+                        ${errorMsg}<br><br>
+                        <strong>Cause probable:</strong> Le serveur ne répond pas ou n'est pas accessible.
+                    </div>
+                `;
+            }
+        }
+
+        async function testLoginEndpoint() {
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML += '<div class="test-result info">⏳ Test du endpoint /api/login avec utilisateur test...</div>';
+            
+            try {
+                const startTime = Date.now();
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+                
+                // Test with a valid user
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: 'Mohamed', password: 'Mohamed' }),
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                const endTime = Date.now();
+                const responseTime = endTime - startTime;
+                
+                const data = await response.json();
+                
+                let html = '<div class="test-result ' + (response.ok ? 'success' : 'error') + '">';
+                html += '<span class="status-icon">' + (response.ok ? '✅' : '❌') + '</span>';
+                html += '<strong>Login API Test:</strong> ' + (response.ok ? 'Réussi' : 'Échec') + '<br>';
+                html += '<strong>Code HTTP:</strong> ' + response.status + '<br>';
+                html += '<strong>Temps de réponse:</strong> ' + responseTime + ' ms<br>';
+                html += '<strong>Réponse:</strong><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                html += '</div>';
+                
+                resultsDiv.innerHTML += html;
+            } catch (error) {
+                let errorMsg = error.message;
+                if (error.name === 'AbortError') {
+                    errorMsg = 'Délai d\'attente dépassé (> 10s)';
+                }
+                
+                resultsDiv.innerHTML += `
+                    <div class="test-result error">
+                        <span class="status-icon">❌</span>
+                        <strong>Erreur Login API:</strong><br>
+                        ${errorMsg}<br><br>
+                        <strong>Cause probable:</strong> Le serveur ne répond pas ou n'est pas accessible.
+                    </div>
+                `;
+            }
+        }
+
+        async function runAllTests() {
+            clearResults();
+            await testHealthEndpoint();
+            await new Promise(resolve => setTimeout(resolve, 500)); // Small delay between tests
+            await testLoginEndpoint();
+        }
+
+        function clearResults() {
+            document.getElementById('test-results').innerHTML = '';
+        }
+
+        // Initialize
+        displaySystemInfo();
+    </script>
+</body>
+</html>

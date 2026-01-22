@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plans Hebdomadaires</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+        integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .table-actions-container {
+            display: flex;
+            justify-content: flex-start;
+            gap: 15px;
+            padding-bottom: 15px;
+            padding-left: 15px;
+        }
+        td.editable {
+            white-space: pre-wrap;
+        }
+        
+        /* Optimisation pour affichage 100% */
+        #main-content {
+            max-width: 100%;
+            padding: 10px;
+        }
+        
+        .table-responsive-wrapper {
+            margin: 0 auto;
+            max-width: 100%;
+        }
+        
+        /* R\u00e9duire la largeur des colonnes fixes */
+        #planTable th:nth-child(1),
+        #planTable td:nth-child(1) { width: 100px; } /* Enseignant */
+        
+        #planTable th:nth-child(2),
+        #planTable td:nth-child(2) { width: 80px; } /* Classe */
+        
+        #planTable th:nth-child(3),
+        #planTable td:nth-child(3) { width: 120px; } /* Mati\u00e8re */
+        
+        #planTable th:nth-child(4),
+        #planTable td:nth-child(4) { width: 60px; } /* P\u00e9riode */
+        
+        #planTable th:nth-child(5),
+        #planTable td:nth-child(5) { width: 100px; } /* Jour */
+    </style>
+</head>
+<body dir="ltr">
+    <div id="login-form">
+        <div class="login-card">
+            <img id="logo"
+                 src="https://cdn.glitch.global/1c613b14-019c-488a-a856-d55d64d174d0/al-kawthar-international-schools-jeddah-saudi-arabia-modified.png?v=1739565146299"
+                 alt="Logo Al-Kawthar">
+            <h1>Connexion</h1>
+            <div>
+                <label for="username">Nom d'utilisateur (Enseignant) :</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div class="password-container">
+                <label for="password">Mot de passe (idem Nom) :</label>
+                <input type="password" id="password" name="password" required>
+                <i class="fas fa-eye password-toggle-icon" id="togglePassword"></i>
+            </div>
+            <button id="login-button" class="pro-button"><i class="fas fa-sign-in-alt"></i> <span class="btn-text">Se connecter</span></button>
+            <p id="login-error"></p>
+        </div>
+    </div>
+    <div id="main-content" style="display: none;">
+        <div class="main-header-container">
+            <img id="logo-main"
+                 src="https://cdn.glitch.global/1c613b14-019c-488a-a856-d55d64d174d0/al-kawthar-international-schools-jeddah-saudi-arabia-modified.png?v=1739565146299"
+                 alt="Logo Al-Kawthar">
+            <div class="title-user-info">
+                 <h1 id="main-title">Plans Hebdomadaires</h1>
+                 <h2 id="weekDateRange"></h2>
+                 <div class="user-actions-container">
+                    <span id="loggedInUserInfo" style="font-style: italic;"></span>
+                    <button id="logout-button" class="pro-button danger-button">
+                        <i class="fas fa-sign-out-alt"></i> <span class="btn-text">Déconnecter</span>
+                    </button>
+                 </div>
+            </div>
+        </div>
+         <button id="toggleIncompleteBtn" onclick="toggleIncompleteList()" class="pro-button toggle-incomplete-btn">
+             <i class="fas fa-list-check"></i> <span class="btn-text">Afficher Incomplets</span>
+        </button>
+        <div id="incompleteTeachersDisplay" style="display: none;">
+            <h4>Enseignants Incomplets (Travaux)</h4>
+            <ul id="incompleteList">
+                <li>Chargement...</li>
+            </ul>
+        </div>
+        <div class="filter-container week-selector-container">
+            <label for="weekSelector"><i class="fas fa-calendar-week"></i> Semaine:</label>
+            <select id="weekSelector" onchange="loadPlanForWeek()">
+                 <option value="">-- Sélectionnez une semaine --</option>
+                 <option value="1">Semaine 1</option><option value="2">Semaine 2</option><option value="3">Semaine 3</option><option value="4">Semaine 4</option><option value="5">Semaine 5</option><option value="6">Semaine 6</option><option value="7">Semaine 7</option><option value="8">Semaine 8</option><option value="9">Semaine 9</option><option value="10">Semaine 10</option><option value="11">Semaine 11</option><option value="12">Semaine 12</option><option value="13">Semaine 13</option><option value="14">Semaine 14</option><option value="15">Semaine 15</option><option value="16">Semaine 16</option><option value="17">Semaine 17</option><option value="18">Semaine 18</option><option value="19">Semaine 19</option><option value="20">Semaine 20</option><option value="21">Semaine 21</option><option value="22">Semaine 22</option><option value="23">Semaine 23</option><option value="24">Semaine 24</option><option value="25">Semaine 25</option><option value="26">Semaine 26</option><option value="27">Semaine 27</option><option value="28">Semaine 28</option><option value="29">Semaine 29</option><option value="30">Semaine 30</option><option value="31">Semaine 31</option><option value="32">Semaine 32</option><option value="33">Semaine 33</option><option value="34">Semaine 34</option><option value="35">Semaine 35</option><option value="36">Semaine 36</option><option value="37">Semaine 37</option><option value="38">Semaine 38</option><option value="39">Semaine 39</option><option value="40">Semaine 40</option><option value="41">Semaine 41</option><option value="42">Semaine 42</option><option value="43">Semaine 43</option><option value="44">Semaine 44</option><option value="45">Semaine 45</option><option value="46">Semaine 46</option><option value="47">Semaine 47</option><option value="48">Semaine 48</option>
+            </select>
+        </div>
+        <div id="admin-actions" class="filter-container admin-section" style="display: none;">
+             <h3 id="admin-title">Actions Administrateur</h3>
+             <div>
+                <label for="excelFileInput" id="admin-excel-label"><i class="fas fa-file-excel"></i> Fichier Excel :</label>
+                <input type="file" id="excelFileInput" accept=".xlsx, .xls" onchange="handleFileUpload(event)">
+             </div>
+             <button id="saveUploadedDataBtn" onclick="saveUploadedData()" disabled class="pro-button accent-button">
+                 <i class="fas fa-database"></i> <span class="btn-text">Charger et Enregistrer dans la DB</span>
+             </button>
+             <span id="file-upload-status" style="font-size: 0.9em;"></span>
+             <div class="admin-subsection">
+                <label for="adminReportClassSelector" id="admin-report-class-label"><i class="fas fa-school"></i> Choisir une Classe :</label>
+                <select id="adminReportClassSelector">
+                    <option value="">-- D'abord charger les classes --</option>
+                </select>
+                <button id="generateFullReportBtn" onclick="generateFullReportByClass()" class="pro-button success-button">
+                    <i class="fas fa-file-invoice"></i> <span class="btn-text">Générer Rapport Complet par Classe</span>
+                </button>
+             </div>
+             <div style="width: 100%; margin-top: 10px; font-size: 0.85em; color: var(--muted-text-color); border-top: 1px dashed var(--border-color); padding-top: 10px;">
+                 <i class="fas fa-info-circle"></i> **Note:** La fonction d'upload et d'extraction automatique depuis des fichiers Word ou PDF n'est pas implémentée dans cette version. Veuillez utiliser le format Excel pour charger les données via le bouton ci-dessus.
+             </div>
+        </div>
+        <div class="filter-container main-actions-container">
+            <button id="generateWordBtn" onclick="generateWordByClasse()" class="action-button pro-button" disabled>
+                 <i class="fas fa-file-word"></i> <span class="btn-text">Générer Word par Classe</span>
+            </button>
+            <button id="generateExcelBtn" onclick="generateExcelWorkbook()" class="action-button pro-button" disabled>
+                 <i class="fas fa-file-excel"></i> <span class="btn-text">Générer Excel (1 Fichier)</span>
+            </button>
+            <a id="downloadLink" style="display:none;"></a>
+        </div>
+        <div class="filter-container data-filters-container">
+             <label for="filterEnseignant" id="filter-enseignant-label"><i class="fas fa-user-tie"></i> Enseignant:</label>
+             <select id="filterEnseignant" onchange="sortAndDisplay()"> <option value="">Tous</option> </select>
+             <label for="filterClasse" id="filter-classe-label"><i class="fas fa-chalkboard-user"></i> Classe:</label>
+             <select id="filterClasse" onchange="sortAndDisplay()"> <option value="">Toutes</option> </select>
+             <label for="filterMatiere" id="filter-matiere-label"><i class="fas fa-book"></i> Matière:</label>
+             <select id="filterMatiere" onchange="sortAndDisplay()"> <option value="">Toutes</option> </select>
+             <label for="filterPeriode" id="filter-periode-label"><i class="fas fa-clock"></i> Période:</label>
+             <select id="filterPeriode" onchange="sortAndDisplay()"> <option value="">Toutes</option> </select>
+             <label for="filterJour" id="filter-jour-label"><i class="fas fa-calendar-day"></i> Jour:</label>
+             <select id="filterJour" onchange="sortAndDisplay()">
+                 <option value="">Tous</option>
+                 <option value="Dimanche">Dimanche</option>
+                 <option value="Lundi">Lundi</option>
+                 <option value="Mardi">Mardi</option>
+                 <option value="Mercredi">Mercredi</option>
+                 <option value="Jeudi">Jeudi</option>
+            </select>
+        </div>
+        <div id="message-alerte" style="display: none;"></div>
+        <div id="progress-bar-container" style="display: none;">
+            <div id="progress-bar">0%</div>
+        </div>
+         <div class="notes-container">
+            <label for="notesClassSelector" id="notes-class-label" style="font-weight: bold;"><i class="fas fa-sticky-note"></i> Notes pour la classe :</label>
+            <select id="notesClassSelector" onchange="displayClassNotes()">
+                <option value="">-- Sélectionnez une classe --</option>
+            </select>
+            <textarea id="notesInput" rows="4" placeholder="Sélectionnez une classe pour voir ou ajouter des notes..." spellcheck="true" disabled dir="auto"></textarea>
+            <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
+                <button id="saveNotesBtn" onclick="saveNotes()" class="action-button pro-button success-button" disabled>
+                    <i class="fas fa-save"></i> <span class="btn-text">Enregistrer Notes</span>
+                </button>
+                <span id="notes-save-status" style="font-size: 0.9em;"></span>
+            </div>
+        </div>
+
+        <!-- Modal avec checkboxes pour sélection classes/matières -->
+        <div id="lessonPlanModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; overflow: auto;">
+            <div style="background: white; margin: 50px auto; max-width: 800px; padding: 30px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.3);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0;"><i class="fas fa-robot"></i> Sélection pour Plans de Leçon IA</h2>
+                    <button onclick="closeLessonPlanModal()" style="background: transparent; border: none; font-size: 28px; cursor: pointer; color: #999;">×</button>
+                </div>
+                
+                <div style="background: #f0f9ff; border-left: 4px solid #0066CC; padding: 15px; margin-bottom: 20px; border-radius: 8px;">
+                    <p style="margin: 0; font-size: 14px; color: #1F2937;">
+                        <i class="fas fa-info-circle" style="color: #0066CC;"></i>
+                        Sélectionnez les classes et matières pour lesquelles vous voulez générer des plans de leçon IA.
+                    </p>
+                </div>
+                
+                <!-- Section Classes -->
+                <div style="margin-bottom: 25px; border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f9fafb;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3 style="margin: 0; color: #1F2937;"><i class="fas fa-users"></i> Classes</h3>
+                        <div>
+                            <button onclick="selectAllClasses()" style="padding: 6px 12px; margin-right: 8px; font-size: 13px; cursor: pointer; border: 1px solid #ddd; background: white; border-radius: 4px;">
+                                <i class="fas fa-check-square"></i> Tout sélectionner
+                            </button>
+                            <button onclick="deselectAllClasses()" style="padding: 6px 12px; font-size: 13px; cursor: pointer; border: 1px solid #ddd; background: white; border-radius: 4px;">
+                                <i class="fas fa-square"></i> Tout désélectionner
+                            </button>
+                        </div>
+                    </div>
+                    <div id="lessonPlanClassesList" style="max-height: 200px; overflow-y: auto; padding: 10px; background: white; border: 1px solid #ddd; border-radius: 6px;">
+                        <p style="color: #999;">Chargement...</p>
+                    </div>
+                </div>
+                
+                <!-- Section Matières -->
+                <div style="margin-bottom: 25px; border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f9fafb;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3 style="margin: 0; color: #1F2937;"><i class="fas fa-book"></i> Matières</h3>
+                        <div>
+                            <button onclick="selectAllSubjects()" style="padding: 6px 12px; margin-right: 8px; font-size: 13px; cursor: pointer; border: 1px solid #ddd; background: white; border-radius: 4px;">
+                                <i class="fas fa-check-square"></i> Tout sélectionner
+                            </button>
+                            <button onclick="deselectAllSubjects()" style="padding: 6px 12px; font-size: 13px; cursor: pointer; border: 1px solid #ddd; background: white; border-radius: 4px;">
+                                <i class="fas fa-square"></i> Tout désélectionner
+                            </button>
+                        </div>
+                    </div>
+                    <div id="lessonPlanSubjectsList" style="max-height: 200px; overflow-y: auto; padding: 10px; background: white; border: 1px solid #ddd; border-radius: 6px;">
+                        <p style="color: #999;">Sélectionnez d'abord une ou plusieurs classes</p>
+                    </div>
+                </div>
+                
+                <!-- Info sélection et boutons -->
+                <div style="text-align: center; margin-top: 20px;">
+                    <div id="lessonPlanSelectionInfo" style="font-size: 14px; margin-bottom: 15px; padding: 10px; background: #fff; border: 1px solid #ddd; border-radius: 6px; color: #999;">
+                        Sélectionnez au moins une classe et une matière
+                    </div>
+                    <button id="generateAllLessonPlansBtn" onclick="startGenerateAllLessonPlans()" class="action-button pro-button success-button" disabled style="padding: 12px 30px; font-size: 16px;">
+                        <i class="fas fa-robot"></i> Générer Plans de Leçon IA
+                    </button>
+                    <button onclick="closeLessonPlanModal()" style="margin-left: 10px; padding: 12px 30px; font-size: 16px; cursor: pointer;">
+                        <i class="fas fa-times"></i> Annuler
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="table-actions-container">
+            <button id="saveAllDisplayedBtn" onclick="saveAllDisplayedRows()" class="action-button save-all-button pro-button success-button" disabled>
+                <i class="fas fa-save"></i> <span class="btn-text">Enregistrer Lignes Affichées</span>
+            </button>
+            <button id="generateAllDisplayedPlansBtn" onclick="generateAllDisplayedLessonPlans()" class="action-button pro-button" disabled style="margin-left: 10px; background: #7C3AED;">
+                <i class="fas fa-file-word"></i> <span class="btn-text">Générer Plans de Leçon (Affichés)</span>
+            </button>
+        </div>
+        <div class="table-responsive-wrapper">
+            <table id="planTable">
+                <thead>
+                    <tr></tr>
+                </thead>
+                <tbody>
+                     <tr id="initial-table-row">
+                         <td colspan="10" style="text-align:center; padding: 20px; color: grey;" id="initial-table-message">
+                             Veuillez sélectionner une semaine pour afficher les données.
+                         </td>
+                     </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script src="notifications.js"></script>
+    <script src="lesson_functions_new.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
