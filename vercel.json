@@ -11,7 +11,7 @@
   "crons": [
     {
       "path": "/api/check-incomplete-and-notify",
-      "schedule": "0 6,11,15 * * 1"
+      "schedule": "0 7 * * 1"
     }
   ]
 }
