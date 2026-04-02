@@ -143,24 +143,32 @@
         function toggleIncompleteList() { const listDiv=document.getElementById('incompleteTeachersDisplay'); const btn=document.getElementById('toggleIncompleteBtn'); const btnTextSpan = btn.querySelector('.btn-text'); if(listDiv.style.display==='none'||listDiv.style.display===''){ listDiv.style.display='block'; btn.querySelector('i').className = 'fas fa-xmark'; if(btnTextSpan) btnTextSpan.textContent = t('hide_incomplete'); } else { listDiv.style.display='none'; btn.querySelector('i').className = 'fas fa-list-check'; if(btnTextSpan) btnTextSpan.textContent = t('display_incomplete'); } }
         async function fetchPlanData(week) { if (!week || isNaN(parseInt(week, 10))) { console.warn("fetchPlanData sans semaine valide."); displayPlanTable([]); document.getElementById('weekDateRange').textContent = t('please_select_week'); return; } if (!loggedInUser) { console.warn("Tentative chargement non connecté."); displayAlert("login_title", true); return; } console.log(`fetchPlanData S${week} pour ${loggedInUser}`); displayAlert('loading_data_week', false, { week: week }); showProgressBar(); updateProgressBar(10); currentWeek = week; const weekNum=parseInt(week,10); const dateRangeEl=document.getElementById('weekDateRange'); weekStartDate=null; planData=[]; headers=[]; weeklyClassNotes={}; dateRangeEl.textContent=`${t('week_label')} ${week}: ${t('loading')}`; displayPlanTable([]); updateActionButtonsState(false); const dates=specificWeekDateRanges[weekNum]; if(dates?.start&&dates?.end){try{const s=new Date(dates.start+'T00:00:00Z'); const e=new Date(dates.end+'T00:00:00Z'); if(!isNaN(s.getTime())&&!isNaN(e.getTime())){ weekStartDate=s; dateRangeEl.textContent = `${t('week_label')} ${week} : ${isArabicUser() ? 'من' : (currentUserLanguage === 'en' ? 'from' : 'du')} ${formatDateForDisplay(s)} ${isArabicUser() ? 'إلى' : (currentUserLanguage === 'en' ? 'to' : 'à')} ${formatDateForDisplay(e)}`;} else throw new Error();}catch(e){dateRangeEl.textContent=`S ${week} (Err dates)`; weekStartDate=null;}} else {dateRangeEl.textContent=`${t('week_label')} ${week} (${t('no_data')}: dates non définies)`; weekStartDate=null;} updateProgressBar(30); try{const r=await fetch(`/api/plans/${week}`); updateProgressBar(70); if(!r.ok){const d=await r.json().catch(()=>null); throw new Error(d?.message || `Err ${r.status}`);} const fetched=await r.json(); if(fetched&&typeof fetched==='object'){planData=fetched.planData||[]; weeklyClassNotes=fetched.classNotes||{}; window.availableWeeklyPlans = fetched.availableWeeklyPlans || [];} else {planData=[]; weeklyClassNotes={}; window.availableWeeklyPlans = [];} updateProgressBar(90); if(planData.length>0){headers=Object.keys(planData[0]).filter(h=>h!=='_id'&&h!=='id'); if(loggedInUser==='Imad'){const enseignantKey=findHKey('Enseignant');const originalCount=planData.length;if(enseignantKey){planData=planData.filter(row=>arabicTeachers.includes(row[enseignantKey]));console.log(`[Imad Admin] Data filtered for Arabic teachers. ${planData.length}/${originalCount} rows remain.`)}} displayAlert('data_loaded_week', false, { week: week });} else {headers=[]; displayAlert('no_data_found_week', false, { week: week });} createTableHeader(); populateFilterOptions(); populateNotesClassSelector(); sortAndDisplay(); displayClassNotes(); checkAndDisplayIncompleteTeachers(); updateActionButtonsState(planData.length > 0); updateProgressBar(100); } catch(e){ console.error("Err fetchPlanData:",e); displayAlert('error_loading_week', true, { week: week, error: e.message }); planData=[]; headers=[]; weeklyClassNotes={}; createTableHeader(); populateFilterOptions(); populateNotesClassSelector(); sortAndDisplay(); displayClassNotes(); checkAndDisplayIncompleteTeachers(); updateProgressBar(0); updateActionButtonsState(false); } finally{hideProgressBar();} }
         
+        // Ordre fixe des colonnes du tableau
+        const COLUMN_ORDER = ['Enseignant', 'Jour', 'Période', 'Classe', 'Matière', 'Leçon', 'Travaux de classe', 'Support', 'Devoirs'];
+
         function createTableHeader() {
             const tHead = document.querySelector('#planTable thead tr');
             tHead.innerHTML = '';
             const curH = headers || [];
-            const hDisp = curH.filter(h => h !== '_id' && h !== 'id' && h.toLowerCase() !== 'updatedat');
             const headerTranslations = translations[currentUserLanguage].headers || translations.fr.headers;
             
             const leconKey = findHKey('Leçon');
             const supportKey = findHKey('Support');
 
-            if (hDisp.length > 0) {
-                hDisp.forEach(h => {
-                    if (arabicTeachers.includes(loggedInUser) && (h === leconKey || h === supportKey)) {
+            if (curH.length > 0) {
+                // Afficher les colonnes dans l'ordre fixe défini par COLUMN_ORDER
+                COLUMN_ORDER.forEach(colName => {
+                    const realKey = findHKey(colName);
+                    if (!realKey) return; // colonne absente des données, on passe
+                    
+                    // Masquer Leçon et Support pour les enseignants arabes
+                    if (arabicTeachers.includes(loggedInUser) && (realKey === leconKey || realKey === supportKey)) {
                         return;
                     }
                     
                     const th = document.createElement('th');
-                    th.textContent = headerTranslations[h] || h;
+                    th.textContent = headerTranslations[colName] || colName;
+                    th.dataset.col = colName;
                     tHead.appendChild(th);
                 });
                 
@@ -191,7 +199,8 @@
             const actualHdrCount = tHead ? tHead.querySelectorAll('th').length : 0;
             const colspanVal = actualHdrCount > 0 ? actualHdrCount : 10;
             const curH = headers || [];
-            const hDisp = curH.filter(h => h !== '_id' && h.toLowerCase() !== 'updatedat' && h !== 'id');
+            // Construire la liste ordonnée des clés réelles selon COLUMN_ORDER
+            const hDisp = COLUMN_ORDER.map(col => findHKey(col)).filter(k => k && curH.includes(k));
             const jK = findHKey('Jour');
             const clsK = findHKey('Classe');
             const updK = findHKey('updatedAt');
